@@ -1,0 +1,123 @@
+Introduction
+In this hands-on lab, we need to create two localized Kafka clusters. These clusters will contain only one zookeeper and kafka instance each. We differentiate between the two by specifying different port numbers and data directories for each cluster. Once both clusters are up and running, we create a topic and replicate that topic to the secondary cluster. We continue to produce messages to the source cluster and ensure that the messages are successfully mirrored.
+
+Solution
+Note: you will be opening several SSH sessions in this lab, it is recommended to do this using your own SSH clients and not the web browser.
+
+Begin by logging in to the lab server using the credentials provided on the hands-on lab page.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Set Up the Environment
+Install Java.
+
+sudo apt install -y default-jdk
+Verify the Java installation.
+
+java -version
+Download the Kafka binaries.
+
+sudo curl -O https://packages.confluent.io/archive/5.2/confluent-5.2.1-2.12.tar.gz
+Expand the downloaded file.
+
+tar -xvf confluent-5.2.1-2.12.tar.gz
+Rename the new folder and enter it.
+
+mv confluent-5.2.1 confluent
+
+cd confluent/
+Start the Destination Cluster
+Start Zookeeper.
+
+bin/zookeeper-server-start etc/kafka/zookeeper.properties
+Open a new terminal and connect to the server.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Start up Kafka.
+
+cd confluent/
+
+bin/kafka-server-start etc/kafka/server.properties
+Start the Origin Cluster
+Open a new terminal and connect to the server.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Copy the properties files.
+
+cd confluent/
+
+cp etc/kafka/zookeeper.properties /tmp/zookeeper_origin.properties
+
+cp etc/kafka/server.properties /tmp/server_origin.properties
+Update the properties files.
+
+sed -i -e "s/2181/2171/g" /tmp/zookeeper_origin.properties
+
+sed -i -e "s/9092/9082/g" /tmp/server_origin.properties
+
+sed -i -e "s/2181/2171/g" /tmp/server_origin.properties
+
+sed -i -e "s/#listen/listen/g" /tmp/server_origin.properties
+
+sed -i -e "s/zookeeper/zookeeper_origin/g" /tmp/zookeeper_origin.properties
+
+sed -i -e "s/kafka-logs/kafka-logs-origin/g" /tmp/server_origin.properties
+Verify the changes in the Zookeeper file.
+
+vim /tmp/zookeeper_origin.properties
+Exit the editor.
+
+Verify the changes in the server file.
+
+vim /tmp/server_origin.properties
+Exit the editor.
+
+Start the Zookeeper.
+
+bin/zookeeper-server-start /tmp/zookeeper_origin.properties
+Open a new terminal and connect to the server.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Start up Kafka.
+
+cd confluent/
+
+bin/kafka-server-start /tmp/server_origin.properties
+Create a Topic in the Source Cluster
+Open a new terminal and connect to the server.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Transfer directories.
+
+cd confluent/
+Create the topic.
+
+bin/kafka-topics --create --topic test-topic --replication-factor 1 --partitions 1 --zookeeper localhost:2171
+Run the Replicator Tool
+Run the replicator.
+
+bin/connect-standalone etc/kafka/connect-standalone.properties etc/kafka-connect-replicator/quickstart-replicator.properties
+Verify Replication
+Open a new terminal and connect to the server.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Transfer directories.
+
+cd confluent/
+Examine the replicator properties.
+
+vim etc/kafka-connect-replicator/quickstart-replicator.properties
+Verify the renaming convention.
+
+Exit the editor.
+
+Use Kafka to examine the file and verify it.
+
+bin/kafka-topics --describe --topic test-topic.replica --zookeeper localhost:2181
+Write to the source topic.
+
+seq 10000 | bin/kafka-console-producer --topic test-topic --broker-list localhost:9082
+Confirm messages were written to the destination cluster.
+
+bin/kafka-console-consumer --from-beginning --topic test-topic.replica --bootstrap-server localhost:9092
+Conclusion
+Congratulations — you've completed this hands-on lab!
