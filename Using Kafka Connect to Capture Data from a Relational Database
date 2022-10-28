@@ -1,0 +1,84 @@
+Introduction
+Kafka Connect can be used for a variety of databases, given it has a multitude of built-in connectors. In this hands-on lab, we set up Kafka Connect in a way allowing us to continuously stream data from a SQLite database directly into Kafka. This lab demonstrates how easy it is to use Kafka Connect to get data into Kafka for further analysis.
+
+Solution
+Begin by logging in to the lab server using the credentials provided on the hands-on lab page.
+
+ssh cloud_user@PUBLIC_IP_ADDRESS
+Install SQLite3
+Run the Docker Container and open a new shell in it.
+
+sudo docker run -it --rm --name sqlite-test --network host confluentinc/docker-demo-base:3.3.0
+Enter the password from the lab instructions.
+
+Navigate to the tmp directory.
+
+cd /tmp
+Start Kafka.
+
+confluent start
+Install SQLite3.
+
+apt-get install sqlite3
+If you receive an error message about being unable to locate package, update the packages and then attempt to install SQLite3 again.
+
+apt-get update
+apt-get install sqlite3
+Create a New Database and Populate It with a Table and Some Data
+Create a new database called "test.db".
+
+sqlite3 test.db
+Create a new table in the SQLite database called "accounts".
+
+CREATE TABLE accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR (255));
+Insert values into the table to begin populating it.
+
+INSERT INTO accounts(name) VALUES('chad');
+INSERT INTO accounts(name) VALUES('terry');
+Exit SQLite.
+
+.quit
+Start Kafka
+Stop Kafka Connect.
+
+confluent stop connect
+Start Kafka Connect in standalone mode.
+
+connect-standalone -daemon /etc/schema-registry/connect-avro-standalone.properties /etc/kafka-connect-jdbc/source-quickstart-sqlite.properties
+Verify that the connector was created.
+
+cat /logs/connectStandalone.out | grep -i "finished"
+Use an alternative method to verify the connector was created.
+
+curl -s localhost:8083/connectors
+Examine the Kafka topic created.
+
+kafka-topics --list --zookeeper localhost:2181 | grep test-sqlite-jdbc
+Start a Kafka Consumer and Write New Data to the Database
+Open a Kafka consumer.
+
+kafka-avro-console-consumer --new-consumer --bootstrap-server localhost:9092 --topic test-sqlite-jdbc-accounts --from-beginning
+Open a new tab to a new terminal session.
+
+Open a new shell in this session.
+
+sudo docker exec -it sqlite-test //bin//bash
+Transfer to the tmp directory.
+
+cd /tmp
+Access the SQLite database test.db.
+
+sqlite3 test.db
+Insert a new value into the accounts table.
+
+INSERT INTO accounts(name) VALUES('william');
+Return to the previous session with the consumer and verify the data has been written.
+
+Return back to the new terminal session and add new values to the table.
+
+INSERT INTO accounts(name) VALUES('karen');
+INSERT INTO accounts(name) VALUES('lisa');
+INSERT INTO accounts(name) VALUES('roger');
+Return to the consumer and verify the new data.
